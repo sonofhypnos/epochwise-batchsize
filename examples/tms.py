@@ -504,7 +504,7 @@ def create_and_train(
 NUM_FEATURES = 6
 NUM_HIDDEN_UNITS = 2
 NUM_SAMPLES = 1024
-NUM_EPOCHS = 4500
+NUM_EPOCHS = 20000
 INIT_KGON = 4
 NUM_OBSERVATIONS = 50 #originally 50 
 
@@ -515,9 +515,9 @@ PLOT_INDICES = [STEPS.index(s) for s in PLOT_STEPS]
 import os
 import pickle
 
-version = "v1.5.0"
+version = "v1.6.0"
 num_runs = 50
-batch_sizes = [2**n for n in range(10,9,-1)] #NOTE: 128-1024 are in v1.3.0
+batch_sizes = [2**n for n in range(10,0,-1)] #NOTE: 128-1024 are in v1.3.0
 
 
 def save_individual_results(batch_size, run, run_logs, run_weights):
