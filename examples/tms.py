@@ -500,14 +500,64 @@ def create_and_train(
 
     return logs, weights
 
+versions = {
+    "v1.5.0": {
+        "num_runs": 50,
+        "batch_sizes": [2**n for n in range(10,-1,-1)],
+        "num_features": 6,
+        "num_hidden_units": 2,
+        "num_samples": 1024,
+        "num_epochs": 4500,
+        "init_kgon": 4,
+        "num_observations": 50,
+        "lr": 0.01, # Accidentally used this learning rate instead of learning_rate in the original code
+    },
+    "v1.6.0":{
+        "num_runs": 50,
+        "batch_sizes": [2**n for n in range(10,8,-1)],
+        "num_features": 6,
+        "num_hidden_units": 2,
+        "num_samples": 1024,
+        "num_epochs": 20000, #wanted to see if there is a noticable increase in the number of 
+        "init_kgon": 4,
+        "num_observations": 50,
+        "lr": 0.005,
+    },
+    "v1.7.0":{
+        "num_runs": 100,
+        "batch_sizes": [2**n for n in range(10,8,-1)],
+        "num_features": 6,
+        "num_hidden_units": 2,
+        "num_samples": 1024,
+        "num_epochs": 4500,
+        "init_kgon": 4,
+        "num_observations": 50,
+        "lr": 0.1,
+    },
+    "v1.8.0":{
+        "num_runs": 100,
+        "batch_sizes": [2**n for n in range(10,8,-1)],
+        "num_features": 20,
+        "num_hidden_units": 3,
+        "num_samples": 1024,
+        "num_epochs": 4500,
+        "init_kgon": 4,
+        "num_observations": 50,
+        "lr": 0.005,
+    },
+}
 
-NUM_FEATURES = 6
-NUM_HIDDEN_UNITS = 2
-NUM_SAMPLES = 1024
-NUM_EPOCHS = 4500
-INIT_KGON = 4
-NUM_OBSERVATIONS = 50 #originally 50 
+version = "v1.7.0"
 
+num_runs = versions[version]["num_runs"]
+batch_sizes = versions[version]["batch_sizes"]
+NUM_FEATURES = versions[version]["num_features"]
+NUM_HIDDEN_UNITS = versions[version]["num_hidden_units"]
+NUM_SAMPLES = versions[version]["num_samples"]
+NUM_EPOCHS = versions[version]["num_epochs"]
+INIT_KGON = versions[version]["init_kgon"]
+NUM_OBSERVATIONS = versions[version]["num_observations"]
+lr=versions[version]["lr"]
 STEPS = sorted(list(set(np.logspace(0, np.log10(NUM_EPOCHS), NUM_OBSERVATIONS).astype(int))))
 PLOT_STEPS = [min(STEPS, key=lambda s: abs(s-i)) for i in [0, 200, 500, 1000, NUM_EPOCHS - 1]] #originally [0, 200, 2000, 10000, NUM_EPOCHS - 1]
 PLOT_INDICES = [STEPS.index(s) for s in PLOT_STEPS]
@@ -515,9 +565,6 @@ PLOT_INDICES = [STEPS.index(s) for s in PLOT_STEPS]
 import os
 import pickle
 
-version = "v1.5.0"
-num_runs = 50
-batch_sizes = [2**n for n in range(10,-1,-1)] #NOTE: 128-1024 are in v1.3.0
 
 
 def save_individual_results(batch_size, run, run_logs, run_weights):
@@ -548,12 +595,13 @@ def aggregate_and_save_results(batch_size):
 aggregated_logs = {}
 aggregated_weights = {}
 
+
 for batch_size in batch_sizes:
     for run in range(num_runs):
         result_log_file = f"results/batch_logs_{batch_size}_run_{run}_{version}.pkl"
         if not os.path.exists(result_log_file):
             print(f"Running batch size {batch_size} for run {run}...")
-            run_logs, run_weights = create_and_train(NUM_FEATURES, NUM_HIDDEN_UNITS, num_samples=NUM_SAMPLES, log_ivl=STEPS, batch_size=batch_size, lr=0.01, num_epochs=NUM_EPOCHS, init_kgon=INIT_KGON, init_zerobias=False, seed=run)
+            run_logs, run_weights = create_and_train(NUM_FEATURES, NUM_HIDDEN_UNITS, num_samples=NUM_SAMPLES, log_ivl=STEPS, batch_size=batch_size, lr=lr, num_epochs=NUM_EPOCHS, init_kgon=INIT_KGON, init_zerobias=False, seed=run)
             
             # Save the results for this run
             save_individual_results(batch_size, run, run_logs, run_weights)
