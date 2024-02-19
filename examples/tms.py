@@ -1,7 +1,7 @@
 
 
-import os
-from typing import Iterable, Optional, Callable, List, Dict, Any
+import os, sys
+from typing import Iterable, Optional, Callable, List, Dict, Any, Union
 import pickle
 from matplotlib import pyplot as plt
 import numpy as np
@@ -16,11 +16,14 @@ import tqdm as tq
 from tqdm.contrib.concurrent import process_map  # or use tqdm.contrib.concurrent.process_map if available
 
 import itertools
-from torch.utils.data import TensorDataset
+from torch.utils.data import TensorDataset, Dataset
 from torch.nn import functional as F
 
 from devinterp.slt.llc import estimate_learning_coeff_with_summary
 from devinterp.optim.sgld import SGLD
+
+from abc import ABC
+
 
 class ToyAutoencoder(nn.Module):
     """
@@ -109,11 +112,6 @@ class ToyAutoencoder(nn.Module):
 Adapted from [TMS-zoo](https://github.com/JakeMendel/TMS-zoo)
 """
 
-from abc import ABC
-from typing import Union
-
-import torch
-from torch.utils.data import Dataset
 
 
 class SyntheticDataset(Dataset, ABC):
@@ -500,81 +498,145 @@ def create_and_train(
 
     return logs, weights
 
-versions = {
-    "v1.5.0": {
-        "num_runs": 50,
-        "batch_sizes": [2**n for n in range(10,-1,-1)],
-        "num_features": 6,
-        "num_hidden_units": 2,
-        "num_samples": 1024,
-        "num_epochs": 4500,
-        "init_kgon": 4,
-        "num_observations": 50,
-        "lr": 0.01, # Accidentally used this learning rate instead of learning_rate in the original code
-    },
-    "v1.6.0":{
-        "num_runs": 50,
-        "batch_sizes": [2**n for n in range(10,8,-1)],
-        "num_features": 6,
-        "num_hidden_units": 2,
-        "num_samples": 1024,
-        "num_epochs": 20000, #wanted to see if there is a noticable increase in the number of 
-        "init_kgon": 4,
-        "num_observations": 50,
-        "lr": 0.005,
-    },
-    "v1.7.0":{
-        "num_runs": 100,
-        "batch_sizes": [2**n for n in range(10,8,-1)],
-        "num_features": 6,
-        "num_hidden_units": 2,
-        "num_samples": 1024,
-        "num_epochs": 4500,
-        "init_kgon": 4,
-        "num_observations": 50,
-        "lr": 0.1,
-    },
-    "v1.8.0":{
-        "num_runs": 100,
-        "batch_sizes": [2**n for n in range(10,8,-1)],
-        "num_features": 20,
-        "num_hidden_units": 3,
-        "num_samples": 1024,
-        "num_epochs": 4500,
-        "init_kgon": 4,
-        "num_observations": 50,
-        "lr": 0.005,
-    },
-}
 
-version = "v1.7.0"
+def get_versions():
+    versions = {
+        "v1.4.0": {
+            "num_runs": 10,
+            "num_features": 8,
+            "num_hidden_units": 2,
+            "num_samples": 1024,
+            "num_epochs": 20000,
+            "init_kgon": 2,
+            "num_observations": 100,
+            "lr": 0.01,
+        },
+          
+        "v1.5.0": {
+            "num_runs": 50,
+            "batch_sizes": [2**n for n in range(10,-1,-1)],
+            "num_features": 6,
+            "num_hidden_units": 2,
+            "num_samples": 1024,
+            "num_epochs": 4500,
+            "init_kgon": 4,
+            "num_observations": 50,
+            "lr": 0.01, # Accidentally used this learning rate instead of learning_rate in the original code
+        },
+        "v1.6.0":{
+            "num_runs": 50,
+            "batch_sizes": [2**n for n in range(10,8,-1)],
+            "num_features": 6,
+            "num_hidden_units": 2,
+            "num_samples": 1024,
+            "num_epochs": 20000, #wanted to see if there is a noticable increase in the number of 
+            "init_kgon": 4,
+            "num_observations": 50,
+            "lr": 0.005,
+        },
+        "v1.7.0":{
+            "num_runs": 100,
+            "batch_sizes": [2**n for n in range(10,7,-1)],
+            "num_features": 6,
+            "num_hidden_units": 2,
+            "num_samples": 1024,
+            "num_epochs": 4500,
+            "init_kgon": 4,
+            "num_observations": 50,
+            "lr": 0.1,
+        },
+        "v1.8.0":{
+            "num_runs": 100,
+            "batch_sizes": [2**n for n in range(10,8,-1)],
+            "num_features": 20,
+            "num_hidden_units": 3,
+            "num_samples": 1024,
+            "num_epochs": 4500,
+            "init_kgon": 4,
+            "num_observations": 50,
+            "lr": 0.005,
+        },
+            "v1.9.0":{
+            "num_runs": 100,
+            "batch_sizes": [2**n for n in range(10,-1,-1)],
+            "num_features": 20,
+            "num_hidden_units": 2,
+            "num_samples": 1024,
+            "num_epochs": 4500,
+            "init_kgon": 4,
+            "num_observations": 50,
+            "lr": 0.005,
+        },
 
-num_runs = versions[version]["num_runs"]
-batch_sizes = versions[version]["batch_sizes"]
-NUM_FEATURES = versions[version]["num_features"]
-NUM_HIDDEN_UNITS = versions[version]["num_hidden_units"]
-NUM_SAMPLES = versions[version]["num_samples"]
-NUM_EPOCHS = versions[version]["num_epochs"]
-INIT_KGON = versions[version]["init_kgon"]
-NUM_OBSERVATIONS = versions[version]["num_observations"]
-lr=versions[version]["lr"]
-STEPS = sorted(list(set(np.logspace(0, np.log10(NUM_EPOCHS), NUM_OBSERVATIONS).astype(int))))
-PLOT_STEPS = [min(STEPS, key=lambda s: abs(s-i)) for i in [0, 200, 500, 1000, NUM_EPOCHS - 1]] #originally [0, 200, 2000, 10000, NUM_EPOCHS - 1]
-PLOT_INDICES = [STEPS.index(s) for s in PLOT_STEPS]
+            "v1.10.0":{
+            "num_runs": 100,
+            "batch_sizes": [2**n for n in range(10, 5,-1)],
+            "num_features": 6,
+            "num_hidden_units": 2,
+            "num_samples": 1024,
+            "num_epochs": 4500,
+            "init_kgon": 4,
+            "num_observations": 100,
+            "lr": 0.005,
+        },
+            "v1.11.0":{
+            "num_runs": 100,
+            "batch_sizes": [2**n for n in range(10, 5,-1)],
+            "num_features": 6,
+            "num_hidden_units": 2,
+            "num_samples": 1024,
+            "num_epochs": 4500,
+            "init_kgon": 4,
+            "num_observations": 100,
+            "lr": 0.005,
+        },
+        
+        "v1.12.0":{
+            "num_runs": 100,
+            "batch_sizes": [2**n for n in range(10, 5,-1)],
+            "num_features": 20,
+            "num_hidden_units": 2,
+            "num_samples": 1024,
+            "num_epochs": 4500,
+            "init_kgon": 4,
+            "num_observations": 100,
+            "lr": 0.005,
+        },
 
-import os
-import pickle
+        "v1.13.0":{
+            "num_runs": 100,
+            "batch_sizes": [2**n for n in range(10, 5,-1)],
+            "num_features": 20,
+            "num_hidden_units": 3,
+            "num_samples": 1024,
+            "num_epochs": 4500,
+            "init_kgon": 4,
+            "num_observations": 100,
+            "lr": 0.005,
+        },
+            "v1.14.0":{
+            "num_runs": 100,
+            "batch_sizes": [2**n for n in range(10, 8,-1)],
+            "num_features": 6,
+            "num_hidden_units": 2,
+            "num_samples": 1024,
+            "num_epochs": 20000,
+            "init_kgon": 4,
+            "num_observations": 100,
+            "lr": 0.005,
+        },
+        
+    }
+    return versions
 
-
-
-def save_individual_results(batch_size, run, run_logs, run_weights):
+def save_individual_results(batch_size, run, run_logs, run_weights,version):
     os.makedirs("results", exist_ok=True)
     with open(f"results/batch_logs_{batch_size}_run_{run}_{version}.pkl", "wb") as f:
         pickle.dump(run_logs, f)
     with open(f"results/batch_weights_{batch_size}_run_{run}_{version}.pkl", "wb") as f:
         pickle.dump(run_weights, f)
 
-def aggregate_and_save_results(batch_size):
+def aggregate_and_save_results(batch_size,version, num_runs):
     all_logs = []
     all_weights = []
     for run in range(num_runs):
@@ -591,32 +653,55 @@ def aggregate_and_save_results(batch_size):
     with open(f"results/batch_weights_{batch_size}_{version}.pkl", "wb") as f:
         pickle.dump(all_weights, f)
 
-# Dictionary to store aggregated results for all batch sizes
-aggregated_logs = {}
-aggregated_weights = {}
+
+def main():
+    version, = sys.argv[1:]
+    versions = get_versions()
+
+    num_runs = versions[version]["num_runs"]
+    batch_sizes = versions[version]["batch_sizes"]
+    NUM_FEATURES = versions[version]["num_features"]
+    NUM_HIDDEN_UNITS = versions[version]["num_hidden_units"]
+    NUM_SAMPLES = versions[version]["num_samples"]
+    NUM_EPOCHS = versions[version]["num_epochs"]
+    INIT_KGON = versions[version]["init_kgon"]
+    NUM_OBSERVATIONS = versions[version]["num_observations"]
+    lr=versions[version]["lr"]
+    STEPS = sorted(list(set(np.logspace(0, np.log10(NUM_EPOCHS), NUM_OBSERVATIONS).astype(int))))
+    PLOT_STEPS = [min(STEPS, key=lambda s: abs(s-i)) for i in [0, 200, 500, 1000, NUM_EPOCHS - 1]] #originally [0, 200, 2000, 10000, NUM_EPOCHS - 1]
+    PLOT_INDICES = [STEPS.index(s) for s in PLOT_STEPS]
+
+  
+
+    # Dictionary to store aggregated results for all batch sizes
+    aggregated_logs = {}
+    aggregated_weights = {}
 
 
-for batch_size in batch_sizes:
-    for run in range(num_runs):
-        result_log_file = f"results/batch_logs_{batch_size}_run_{run}_{version}.pkl"
-        if not os.path.exists(result_log_file):
-            print(f"Running batch size {batch_size} for run {run}...")
-            run_logs, run_weights = create_and_train(NUM_FEATURES, NUM_HIDDEN_UNITS, num_samples=NUM_SAMPLES, log_ivl=STEPS, batch_size=batch_size, lr=lr, num_epochs=NUM_EPOCHS, init_kgon=INIT_KGON, init_zerobias=False, seed=run)
-            
-            # Save the results for this run
-            save_individual_results(batch_size, run, run_logs, run_weights)
+    for batch_size in batch_sizes:
+        for run in range(num_runs):
+            result_log_file = f"results/batch_logs_{batch_size}_run_{run}_{version}.pkl"
+            if not os.path.exists(result_log_file):
+                print(f"Running batch size {batch_size} for run {run}...")
+                run_logs, run_weights = create_and_train(NUM_FEATURES, NUM_HIDDEN_UNITS, num_samples=NUM_SAMPLES, log_ivl=STEPS, batch_size=batch_size, lr=lr, num_epochs=NUM_EPOCHS, init_kgon=INIT_KGON, init_zerobias=False, seed=run)
+                
+                # Save the results for this run
+                save_individual_results(batch_size, run, run_logs, run_weights, version)
 
-    # Aggregate results after all runs are completed for this batch size
-    aggregate_and_save_results(batch_size)
-    with open(f"results/batch_logs_{batch_size}_{version}.pkl", "rb") as f:
-        aggregated_logs[batch_size] = pickle.load(f)
-    with open(f"results/batch_weights_{batch_size}_{version}.pkl", "rb") as f:
-        aggregated_weights[batch_size] = pickle.load(f)
+        # Aggregate results after all runs are completed for this batch size
+        aggregate_and_save_results(batch_size, version, num_runs)
+        with open(f"results/batch_logs_{batch_size}_{version}.pkl", "rb") as f:
+            aggregated_logs[batch_size] = pickle.load(f)
+        with open(f"results/batch_weights_{batch_size}_{version}.pkl", "rb") as f:
+            aggregated_weights[batch_size] = pickle.load(f)
 
-# Save the aggregated results for all batch sizes
-with open(f"results/batch_logs_{version}.pkl", "wb") as f:
-    pickle.dump(aggregated_logs, f)
-with open(f"results/batch_weights_{version}.pkl", "wb") as f:
-    pickle.dump(aggregated_weights, f)
-with open(f"results/batch_sizes_{version}.pkl", "wb") as f:
-    pickle.dump(batch_sizes, f)
+    # Save the aggregated results for all batch sizes
+    with open(f"results/batch_logs_{version}.pkl", "wb") as f:
+        pickle.dump(aggregated_logs, f)
+    with open(f"results/batch_weights_{version}.pkl", "wb") as f:
+        pickle.dump(aggregated_weights, f)
+    with open(f"results/batch_sizes_{version}.pkl", "wb") as f:
+        pickle.dump(batch_sizes, f)
+
+if __name__ == "__main__":
+    main()
