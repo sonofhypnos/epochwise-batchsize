@@ -1,7 +1,6 @@
-
-import os, sys
 from typing import Iterable, Optional, Callable, List, Dict, Any, Union
 import pickle
+import os, sys
 from matplotlib import pyplot as plt
 import numpy as np
 import pandas as pd
@@ -12,7 +11,9 @@ import torch.optim as optim
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 import tqdm as tq
-from tqdm.contrib.concurrent import process_map  # or use tqdm.contrib.concurrent.process_map if available
+from tqdm.contrib.concurrent import (
+    process_map,
+)  # or use tqdm.contrib.concurrent.process_map if available
 
 import itertools
 from torch.utils.data import TensorDataset, Dataset
@@ -77,12 +78,15 @@ class ToyAutoencoder(nn.Module):
 
         # If unit weights is set, normalize weights
         if self.unit_weights:
-            self.embedding.weight.data = F.normalize(self.embedding.weight.data, p=2, dim=0)
+            self.embedding.weight.data = F.normalize(
+                self.embedding.weight.data, p=2, dim=0
+            )
 
         # Tie the weights of embedding and unembedding layers
         if tied:
-            self.unembedding.weight = torch.nn.Parameter(self.embedding.weight.transpose(0, 1))
-
+            self.unembedding.weight = torch.nn.Parameter(
+                self.embedding.weight.transpose(0, 1)
+            )
 
     def forward(self, x: torch.Tensor):
         """
@@ -90,7 +94,9 @@ class ToyAutoencoder(nn.Module):
         """
         # Apply the same steps for weights as done during initialization
         if self.unit_weights:
-            self.embedding.weight.data = F.normalize(self.embedding.weight.data, p=2, dim=0)
+            self.embedding.weight.data = F.normalize(
+                self.embedding.weight.data, p=2, dim=0
+            )
 
         if self.standard_magnitude:
             avg_norm = torch.norm(self.embedding.weight.data, p=2, dim=0).mean()
@@ -107,10 +113,10 @@ class ToyAutoencoder(nn.Module):
 
         return x
 
+
 """
 Adapted from [TMS-zoo](https://github.com/JakeMendel/TMS-zoo)
 """
-
 
 
 class SyntheticDataset(Dataset, ABC):
@@ -137,7 +143,9 @@ class SyntheticDataset(Dataset, ABC):
                         Otherwise, the features are weighted by `importance ** (1 + i)`, where `i` is the index of the feature.
         """
         self.num_samples = num_samples  # The number of samples in the dataset
-        self.num_features = num_features  # The size of the feature vector for each sample
+        self.num_features = (
+            num_features  # The size of the feature vector for each sample
+        )
         self.sparsity = sparsity
         # self.importance = importance
         self.data = self.generate_data()  # Generate the synthetic data
@@ -217,10 +225,11 @@ DEVICE = os.environ.get(
 DEVICE = torch.device(DEVICE)
 NUM_CORES = int(os.environ.get("NUM_CORES", 1))
 
-def generate_2d_kgon_vertices(k, rot=0., pad_to=None, force_length=0.9):
+
+def generate_2d_kgon_vertices(k, rot=0.0, pad_to=None, force_length=0.9):
     """Set the weights of a 2D k-gon to be the vertices of a regular k-gon."""
     # Angles for the vertices
-    theta = np.linspace(0, 2* np.pi, k, endpoint=False) + rot
+    theta = np.linspace(0, 2 * np.pi, k, endpoint=False) + rot
 
     # Generate the vertices
     x = np.cos(theta)
@@ -231,11 +240,20 @@ def generate_2d_kgon_vertices(k, rot=0., pad_to=None, force_length=0.9):
         num_pad = pad_to - k
         result = np.hstack([result, np.zeros((2, num_pad))])
 
-    return (result * force_length)
+    return result * force_length
 
 
-def generate_init_param(m, n, init_kgon, prior_std=1., no_bias=True, init_zerobias=True, seed=0, force_negb=False,
-                        noise=0.01):
+def generate_init_param(
+    m,
+    n,
+    init_kgon,
+    prior_std=1.0,
+    no_bias=True,
+    init_zerobias=True,
+    seed=0,
+    force_negb=False,
+    noise=0.01,
+):
     np.random.seed(seed)
 
     if init_kgon is None or m != 2:
@@ -254,49 +272,55 @@ def generate_init_param(m, n, init_kgon, prior_std=1., no_bias=True, init_zerobi
             init_b = -np.abs(init_b)
         if init_zerobias:
             init_b = init_b * 0
-        param = {
-            "W": init_W,
-            "b": init_b
-        }
+        param = {"W": init_W, "b": init_b}
     return param
 
 
 def create_and_train(
-        m: int,
-        n: int,
-        num_samples: int,
-        batch_size: Optional[int] = 1,
-        num_epochs: int = 100,
-        lr: float = 0.001,
-        log_ivl: Iterable[int] = [],
-        device=DEVICE,
-        momentum=0.9,
-        weight_decay=0.0,
-        init_kgon=None,
-        no_bias=False,
-        init_zerobias=False,
-        prior_std=10.,
-        force_negb=False,
-        seed=0,
-        opt_func=optim.SGD,
+    m: int,
+    n: int,
+    num_samples: int,
+    batch_size: Optional[int] = 1,
+    num_epochs: int = 100,
+    lr: float = 0.001,
+    log_ivl: Iterable[int] = [],
+    device=DEVICE,
+    momentum=0.9,
+    weight_decay=0.0,
+    init_kgon=None,
+    no_bias=False,
+    init_zerobias=False,
+    prior_std=10.0,
+    force_negb=False,
+    seed=0,
+    opt_func=optim.SGD,
 ):
     model = ToyAutoencoder(m, n, final_bias=True)
 
-    init_weights = generate_init_param(n, m, init_kgon, no_bias=no_bias, init_zerobias=init_zerobias,
-                                       prior_std=prior_std, seed=seed, force_negb=force_negb)
+    init_weights = generate_init_param(
+        n,
+        m,
+        init_kgon,
+        no_bias=no_bias,
+        init_zerobias=init_zerobias,
+        prior_std=prior_std,
+        seed=seed,
+        force_negb=force_negb,
+    )
     model.embedding.weight.data = torch.from_numpy(init_weights["W"]).float()
 
     if "b" in init_weights:
-        model.unembedding.bias.data = torch.from_numpy(init_weights["b"].flatten()).float()
-    
-
-
+        model.unembedding.bias.data = torch.from_numpy(
+            init_weights["b"].flatten()
+        ).float()
 
     dataset = SyntheticBinaryValued(num_samples, m, 1)
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
     if opt_func == optim.SGD:
-        optimizer = opt_func(model.parameters(), lr=lr, momentum=momentum, weight_decay=weight_decay)
-    elif opt_func== optim.Adam:
+        optimizer = opt_func(
+            model.parameters(), lr=lr, momentum=momentum, weight_decay=weight_decay
+        )
+    elif opt_func == optim.Adam:
         optimizer = opt_func(model.parameters(), lr=lr, weight_decay=weight_decay)
     else:
         raise ValueError(f"Unknown optimizer: {opt_func}")
@@ -320,11 +344,12 @@ def create_and_train(
                 acc += (outputs.round() == batch).float().sum().item()
                 length += len(batch)
 
-        loss /= length
         acc /= length
 
         logs.loc[logs["step"] == step, ["loss", "acc"]] = [loss, acc]
-        weights.append({k: v.cpu().detach().clone().numpy() for k, v in model.state_dict().items()})
+        weights.append(
+            {k: v.cpu().detach().clone().numpy() for k, v in model.state_dict().items()}
+        )
 
     step = 0
     log(step)
@@ -344,10 +369,9 @@ def create_and_train(
             loss.backward()
 
             ## Print gradients
-            #for name, parameter in model.named_parameters():
+            # for name, parameter in model.named_parameters():
             #    if parameter.requires_grad:
             #        print(f"{name} gradient: {parameter.grad}")
-
 
             optimizer.step()
 
@@ -361,7 +385,7 @@ def create_and_train(
 
 def get_versions():
     versions = {
-        #first version that still works.
+        # first version that still works.
         "v1.4.0": {
             "num_runs": 10,
             "num_features": 8,
@@ -371,13 +395,12 @@ def get_versions():
             "init_kgon": 2,
             "num_observations": 100,
             "lr": 0.01,
-            "prior_std": 10.,
+            "prior_std": 10.0,
         },
-
-        #Version with the most batch_sizes computed
+        # Version with the most batch_sizes computed
         "v1.5.0": {
-            "num_runs": 50,
-            "batch_sizes": [2 ** n for n in range(10, -1, -1)],
+            "num_runs": 25,
+            "batch_sizes": [2**n for n in range(10, -1, -1)],
             "num_features": 6,
             "num_hidden_units": 2,
             "num_samples": 1024,
@@ -385,11 +408,11 @@ def get_versions():
             "init_kgon": 4,
             "num_observations": 50,
             "lr": 0.01,  # Accidentally used this learning rate instead of learning_rate in the original code
-            "prior_std": 10.,
+            "prior_std": 10.0,
         },
         "v1.6.0": {
             "num_runs": 50,
-            "batch_sizes": [2 ** n for n in range(10, 8, -1)],
+            "batch_sizes": [2**n for n in range(10, 8, -1)],
             "num_features": 6,
             "num_hidden_units": 2,
             "num_samples": 1024,
@@ -397,11 +420,11 @@ def get_versions():
             "init_kgon": 4,
             "num_observations": 50,
             "lr": 0.005,
-            "prior_std": 10.,
+            "prior_std": 10.0,
         },
         "v1.7.0": {
             "num_runs": 100,
-            "batch_sizes": [2 ** n for n in range(10, 7, -1)],
+            "batch_sizes": [2**n for n in range(10, 7, -1)],
             "num_features": 6,
             "num_hidden_units": 2,
             "num_samples": 1024,
@@ -409,12 +432,12 @@ def get_versions():
             "init_kgon": 4,
             "num_observations": 50,
             "lr": 0.1,
-            "prior_std": 10.,
+            "prior_std": 10.0,
         },
-        #c=20 and dimension 3
+        # c=20 and dimension 3
         "v1.8.0": {
             "num_runs": 100,
-            "batch_sizes": [2 ** n for n in range(10, 8, -1)],
+            "batch_sizes": [2**n for n in range(10, 8, -1)],
             "num_features": 20,
             "num_hidden_units": 3,
             "num_samples": 1024,
@@ -422,12 +445,12 @@ def get_versions():
             "init_kgon": 4,
             "num_observations": 50,
             "lr": 0.005,
-            "prior_std": 10.,
+            "prior_std": 10.0,
         },
-        #c=20
+        # c=20
         "v1.9.0": {
             "num_runs": 100,
-            "batch_sizes": [2 ** n for n in range(10, 8, -1)],
+            "batch_sizes": [2**n for n in range(10, 8, -1)],
             "num_features": 20,
             "num_hidden_units": 2,
             "num_samples": 1024,
@@ -435,13 +458,12 @@ def get_versions():
             "init_kgon": 4,
             "num_observations": 50,
             "lr": 0.005,
-            "prior_std": 10.,
+            "prior_std": 10.0,
         },
-
-        #First version that uses hyperparameters that are roughly like in the paper
+        # First version that uses hyperparameters that are roughly like in the paper
         "v1.10.0": {
             "num_runs": 100,
-            "batch_sizes": [2 ** n for n in range(10, 5, -1)],
+            "batch_sizes": [2**n for n in range(10, 5, -1)],
             "num_features": 6,
             "num_hidden_units": 2,
             "num_samples": 1024,
@@ -449,12 +471,12 @@ def get_versions():
             "init_kgon": 4,
             "num_observations": 100,
             "lr": 0.005,
-            "prior_std": 10.,
+            "prior_std": 10.0,
         },
-        #unsure what is different?
+        # unsure what is different?
         "v1.11.0": {
             "num_runs": 100,
-            "batch_sizes": [2 ** n for n in range(10, 5, -1)],
+            "batch_sizes": [2**n for n in range(10, 5, -1)],
             "num_features": 6,
             "num_hidden_units": 2,
             "num_samples": 1024,
@@ -462,13 +484,12 @@ def get_versions():
             "init_kgon": 4,
             "num_observations": 100,
             "lr": 0.005,
-            "prior_std": 10.,
+            "prior_std": 10.0,
         },
-
-        #unsure what is different?
+        # 20 features.
         "v1.12.0": {
             "num_runs": 100,
-            "batch_sizes": [2 ** n for n in range(10, 5, -1)],
+            "batch_sizes": [2**n for n in range(10, 5, -1)],
             "num_features": 20,
             "num_hidden_units": 2,
             "num_samples": 1024,
@@ -476,12 +497,12 @@ def get_versions():
             "init_kgon": 4,
             "num_observations": 100,
             "lr": 0.005,
-            "prior_std": 10.,
+            "prior_std": 10.0,
         },
         # 3 dimensions
         "v1.13.0": {
             "num_runs": 100,
-            "batch_sizes": [2 ** n for n in range(10, 5, -1)],
+            "batch_sizes": [2**n for n in range(10, 5, -1)],
             "num_features": 20,
             "num_hidden_units": 3,
             "num_samples": 1024,
@@ -489,12 +510,12 @@ def get_versions():
             "init_kgon": 4,
             "num_observations": 100,
             "lr": 0.005,
-            "prior_std": 10.,
+            "prior_std": 10.0,
         },
-        #long version with original parameters:
+        # 20K episodes with original parameters:
         "v1.14.0": {
             "num_runs": 100,
-            "batch_sizes": [2 ** n for n in range(10, 9, -1)],
+            "batch_sizes": [2**n for n in range(10, 9, -1)],
             "num_features": 6,
             "num_hidden_units": 2,
             "num_samples": 1024,
@@ -502,12 +523,12 @@ def get_versions():
             "init_kgon": 4,
             "num_observations": 100,
             "lr": 0.005,
-            "prior_std": 10.,
+            "prior_std": 10.0,
         },
-        #unfinished
+        # unfinished
         "v1.15.0": {
             "num_runs": 100,
-            "batch_sizes": [2 ** n for n in range(10, 8, -1)],
+            "batch_sizes": [2**n for n in range(10, 8, -1)],
             "num_features": 6,
             "num_hidden_units": 2,
             "num_samples": 1024,
@@ -515,9 +536,9 @@ def get_versions():
             "init_kgon": 4,
             "num_observations": 100,
             "lr": 0.005,
-            "prior_std": 10.,
+            "prior_std": 10.0,
         },
-        #tried what happens if force_negative (didn't make a big different to phase transitions)
+        # tried what happens if force_negative (didn't make a big different to phase transitions)
         "v1.16.0": {
             "num_runs": 10,
             "batch_sizes": [1024, 512, 16],
@@ -528,10 +549,10 @@ def get_versions():
             "init_kgon": 4,
             "num_observations": 100,
             "lr": 0.005,
-            "prior_std": 1.,
+            "prior_std": 1.0,
             "force_negb": True,
         },
-        #unfinished
+        # unfinished
         "v1.17.0": {
             "num_runs": 10,
             "batch_sizes": [1024, 512, 32, 16],
@@ -542,7 +563,7 @@ def get_versions():
             "init_kgon": 4,
             "num_observations": 100,
             "lr": 0.005,
-            "prior_std": 1.,
+            "prior_std": 1.0,
             "force_negb": False,
         },
         "v1.18.0": {
@@ -555,14 +576,14 @@ def get_versions():
             "init_kgon": 4,
             "num_observations": 100,
             "lr": 0.005,
-            "prior_std": .1,
+            "prior_std": 0.1,
             "force_negb": False,
             "optimizer": optim.Adam,
         },
-        #initialized with a smaller batch size (tried to see if this makes a difference)
+        # initialized with a smaller batch size (tried to see if this makes a difference)
         "v1.19.0": {
             "num_runs": 100,
-            "batch_sizes": [1024,16],
+            "batch_sizes": [1024, 16],
             "num_features": 6,
             "num_hidden_units": 2,
             "num_samples": 1024,
@@ -576,7 +597,7 @@ def get_versions():
         },
         "v1.20.0": {
             "num_runs": 100,
-            "batch_sizes": [1024,16],
+            "batch_sizes": [1024, 16],
             "num_features": 6,
             "num_hidden_units": 2,
             "num_samples": 1024,
@@ -588,11 +609,10 @@ def get_versions():
             "force_negb": False,
             "optimizer": optim.SGD,
         },
-
-        #unfinished
+        # unfinished
         "v1.21.0": {
             "num_runs": 100,
-            "batch_sizes": [1024,16],
+            "batch_sizes": [1024, 16],
             "num_features": 6,
             "num_hidden_units": 2,
             "num_samples": 1024,
@@ -604,7 +624,7 @@ def get_versions():
             "force_negb": False,
             "optimizer": optim.SGD,
         },
-        #overfitting (for debugging)
+        # overfitting (for debugging)
         "v1.22.0": {
             "num_runs": 1,
             "batch_sizes": [1024],
@@ -615,11 +635,10 @@ def get_versions():
             "init_kgon": 2,
             "num_observations": 50,
             "lr": 0.005,
-            "prior_std": 10.,
+            "prior_std": 10.0,
             "force_negb": False,
             "optimizer": optim.SGD,
         },
-
     }
     return versions
 
@@ -636,9 +655,13 @@ def aggregate_and_save_results(batch_size, version, num_runs):
     all_logs = []
     all_weights = []
     for run in range(num_runs):
-        with open(f"results/batch_logs_{batch_size}_run_{run}_{version}.pkl", "rb") as f:
+        with open(
+            f"results/batch_logs_{batch_size}_run_{run}_{version}.pkl", "rb"
+        ) as f:
             run_logs = pickle.load(f)
-        with open(f"results/batch_weights_{batch_size}_run_{run}_{version}.pkl", "rb") as f:
+        with open(
+            f"results/batch_weights_{batch_size}_run_{run}_{version}.pkl", "rb"
+        ) as f:
             run_weights = pickle.load(f)
         all_logs.append(run_logs)
         all_weights.append(run_weights)
@@ -651,7 +674,7 @@ def aggregate_and_save_results(batch_size, version, num_runs):
 
 
 def main():
-    version, = sys.argv[1:]
+    (version,) = sys.argv[1:]
     versions = get_versions()
 
     num_runs = versions[version]["num_runs"]
@@ -663,9 +686,13 @@ def main():
     INIT_KGON = versions[version]["init_kgon"]
     NUM_OBSERVATIONS = versions[version]["num_observations"]
     lr = versions[version]["lr"]
-    STEPS = sorted(list(set(np.logspace(0, np.log10(NUM_EPOCHS), NUM_OBSERVATIONS).astype(int))))
-    PLOT_STEPS = [min(STEPS, key=lambda s: abs(s - i)) for i in
-                  [0, 200, 500, 1000, NUM_EPOCHS - 1]]  # originally [0, 200, 2000, 10000, NUM_EPOCHS - 1]
+    STEPS = sorted(
+        list(set(np.logspace(0, np.log10(NUM_EPOCHS), NUM_OBSERVATIONS).astype(int)))
+    )
+    PLOT_STEPS = [
+        min(STEPS, key=lambda s: abs(s - i))
+        for i in [0, 200, 500, 1000, NUM_EPOCHS - 1]
+    ]  # originally [0, 200, 2000, 10000, NUM_EPOCHS - 1]
     PLOT_INDICES = [STEPS.index(s) for s in PLOT_STEPS]
     prior_std = versions[version]["prior_std"]
     if "force_negb" in versions[version]:
@@ -686,11 +713,21 @@ def main():
             result_log_file = f"results/batch_logs_{batch_size}_run_{run}_{version}.pkl"
             if not os.path.exists(result_log_file):
                 print(f"Running batch size {batch_size} for run {run}...")
-                run_logs, run_weights = create_and_train(NUM_FEATURES, NUM_HIDDEN_UNITS, num_samples=NUM_SAMPLES,
-                                                         log_ivl=STEPS, batch_size=batch_size, lr=lr,
-                                                         num_epochs=NUM_EPOCHS, init_kgon=INIT_KGON,
-                                                         init_zerobias=False, seed=run, prior_std=prior_std,
-                                                         force_negb=force_negb, opt_func=optimizer)
+                run_logs, run_weights = create_and_train(
+                    NUM_FEATURES,
+                    NUM_HIDDEN_UNITS,
+                    num_samples=NUM_SAMPLES,
+                    log_ivl=STEPS,
+                    batch_size=batch_size,
+                    lr=lr,
+                    num_epochs=NUM_EPOCHS,
+                    init_kgon=INIT_KGON,
+                    init_zerobias=False,
+                    seed=run,
+                    prior_std=prior_std,
+                    force_negb=force_negb,
+                    opt_func=optimizer,
+                )
 
                 # Save the results for this run
                 save_individual_results(batch_size, run, run_logs, run_weights, version)
