@@ -340,10 +340,11 @@ def create_and_train(
             for batch in dataloader:
                 batch = batch.to(device)
                 outputs = model(batch)
-                loss += criterion(outputs, batch).item()
+                loss += criterion(outputs, batch).item() * len(batch) # sum of losses instead of mean
                 acc += (outputs.round() == batch).float().sum().item()
                 length += len(batch)
-
+        
+        loss /= length
         acc /= length
 
         logs.loc[logs["step"] == step, ["loss", "acc"]] = [loss, acc]
@@ -381,7 +382,6 @@ def create_and_train(
                 log(step)
 
     return logs, weights
-
 
 def get_versions():
     versions = {
